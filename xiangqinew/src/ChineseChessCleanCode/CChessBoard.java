@@ -29,6 +29,9 @@ public class CChessBoard {
         final static int ranks = 10;
         final static int files = 9;
         private Set<Pieces> pieces = new HashSet<>();
+        private boolean gameOver = false;
+        private boolean lastMoverRed = false;
+        private boolean winByNoMoves = false;
 
         Set<Pieces> getPieces() {
                 return pieces;
@@ -36,6 +39,10 @@ public class CChessBoard {
 
         boolean isRedTurn() {
                 return isRedTurn;
+        }
+
+        boolean isGameOver() {
+                return gameOver;
         }
 
         CChessBoard() {
@@ -74,14 +81,36 @@ public class CChessBoard {
                     }
                     return null;
                   }
-		  void movePiece(int fromCol, int fromRow, int toCol, int toRow) {
-			  Pieces movingP = pieceAt(fromCol, fromRow);
-			  Pieces targetP = pieceAt(toCol, toRow);
-			  pieces.remove(movingP);
-			  pieces.remove(targetP);
-			  pieces.add(new Pieces(toCol, toRow, movingP.isRed, movingP.rank, movingP.imgName));
-			  isRedTurn = !isRedTurn;
-		  }
+                  void movePiece(int fromCol, int fromRow, int toCol, int toRow) {
+                          movePieceInternal(fromCol, fromRow, toCol, toRow, true);
+                  }
+
+                  private void movePieceInternal(int fromCol, int fromRow, int toCol, int toRow, boolean checkGameOver) {
+                          Pieces movingP = pieceAt(fromCol, fromRow);
+                          Pieces targetP = pieceAt(toCol, toRow);
+                          lastMoverRed = movingP != null && movingP.isRed;
+                          pieces.remove(movingP);
+                          pieces.remove(targetP);
+                          pieces.add(new Pieces(toCol, toRow, movingP.isRed, movingP.rank, movingP.imgName));
+                          isRedTurn = !isRedTurn;
+                          if (checkGameOver) {
+                                  updateGameOverState();
+                          }
+                  }
+
+                  private void updateGameOverState() {
+                          boolean redKingAlive = hasKing(true);
+                          boolean blackKingAlive = hasKing(false);
+                          if (!redKingAlive || !blackKingAlive) {
+                                  gameOver = true;
+                                  winByNoMoves = false;
+                                  return;
+                          }
+                          if (getAllValidMoves().isEmpty()) {
+                                  gameOver = true;
+                                  winByNoMoves = true;
+                          }
+                  }
 		  private boolean outBoard(int col, int row) {
 			  return col < 0 || col > 8 || row < 0 || row > 9;
 		  }
@@ -132,14 +161,51 @@ public class CChessBoard {
 			  }
 			  return bd;
 		  }
-		  private boolean selfKilling(int fromCol, int fromRow, int toCol, int toRow, boolean isRed) {
-			  Pieces target = pieceAt(toCol, toRow);
-			  return target != null && target.isRed == isRed;
-		  }
-		  private boolean AdvisorMove(int fromCol, int fromRow, int toCol, int toRow, boolean isRed) {
-			  if (KingAndAdvisoroutPlace(toCol, toRow, isRed)) { 
-				    return false; 
-			  }
+                  private boolean selfKilling(int fromCol, int fromRow, int toCol, int toRow, boolean isRed) {
+                          Pieces target = pieceAt(toCol, toRow);
+                          return target != null && target.isRed == isRed;
+                  }
+
+                  private boolean kingsFacing() {
+                          Pieces redKing = null;
+                          Pieces blackKing = null;
+                          for (Pieces p : pieces) {
+                                  if (p.rank == Rank.KING) {
+                                          if (p.isRed) {
+                                                  redKing = p;
+                                          } else {
+                                                  blackKing = p;
+                                          }
+                                  }
+                          }
+                          if (redKing == null || blackKing == null) {
+                                  return false;
+                          }
+                          if (redKing.col != blackKing.col) {
+                                  return false;
+                          }
+                          int start = Math.min(redKing.row, blackKing.row) + 1;
+                          int end = Math.max(redKing.row, blackKing.row);
+                          for (int r = start; r < end; r++) {
+                                  if (pieceAt(redKing.col, r) != null) {
+                                          return false;
+                                  }
+                          }
+                          return true;
+                  }
+
+                  boolean hasKing(boolean isRed) {
+                          for (Pieces p : pieces) {
+                                  if (p.rank == Rank.KING && p.isRed == isRed) {
+                                          return true;
+                                  }
+                          }
+                          return false;
+                  }
+                  private boolean AdvisorMove(int fromCol, int fromRow, int toCol, int toRow, boolean isRed) {
+                          if (KingAndAdvisoroutPlace(toCol, toRow, isRed)) {
+                                    return false;
+                          }
 			  return isDiagonal(fromCol, fromRow, toCol, toRow) 
 					  && steps(fromCol, fromRow, toCol, toRow) == 1;
 		  }
@@ -202,14 +268,14 @@ public class CChessBoard {
                           if(fromC == toC && fromR == toR || outBoard(toC, toR)) {
                                   return false;
                           }
-			  Pieces p = pieceAt(fromC, fromR);
+                          Pieces p = pieceAt(fromC, fromR);
 			  if (p == null || p.isRed != isRedTurn || selfKilling(fromC, fromR, toC, toR, p.isRed)) {
 			    return false;
 			  }
 			  boolean ok = false;
-			  switch (p.rank) {
-			    case ADVISOR: 
-			      ok = AdvisorMove(fromC, fromR, toC, toR, p.isRed);
+                          switch (p.rank) {
+                            case ADVISOR:
+                              ok = AdvisorMove(fromC, fromR, toC, toR, p.isRed);
 			      break;
 			    case KING: 
 			      ok = KingMove(fromC, fromR, toC, toR, p.isRed);
@@ -226,14 +292,39 @@ public class CChessBoard {
 			    case CANNON: 
 			      ok = CannonMove(fromC, fromR, toC, toR);
 			      break;
-			    case PAWN: 
-			      ok = PawnMove(fromC, fromR, toC, toR, p.isRed);
-			      break;
-			  }
-                          return ok;
+                            case PAWN:
+                              ok = PawnMove(fromC, fromR, toC, toR, p.isRed);
+                              break;
+                          }
+                          if (!ok) {
+                                  return false;
+                          }
+                          return !kingFacesAfter(fromC, fromR, toC, toR);
                   }
 
+        private boolean kingFacesAfter(int fromC, int fromR, int toC, int toR) {
+                CChessBoard hypothetical = new CChessBoard(this);
+                hypothetical.movePieceInternal(fromC, fromR, toC, toR, false);
+                return hypothetical.kingsFacing();
+        }
+
+        Boolean winnerIsRed() {
+                if (!hasKing(true)) {
+                        return false;
+                }
+                if (!hasKing(false)) {
+                        return true;
+                }
+                if (gameOver && winByNoMoves) {
+                        return lastMoverRed;
+                }
+                return null;
+        }
+
         List<Move> getAllValidMoves() {
+                if (gameOver) {
+                        return new ArrayList<>();
+                }
                 List<Move> moves = new ArrayList<>();
                 for (Pieces p : pieces) {
                         if (p.isRed != isRedTurn) continue;

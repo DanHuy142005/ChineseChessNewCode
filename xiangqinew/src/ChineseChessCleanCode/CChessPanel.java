@@ -9,6 +9,7 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import javax.swing.SwingUtilities;
+import javax.swing.JOptionPane;
 
 public class CChessPanel extends JPanel implements MouseListener, MouseMotionListener {
     private CChessBoard brd;
@@ -57,6 +58,10 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
 
     @Override
     public void mousePressed(MouseEvent me) {
+        if (brd.isGameOver()) {
+            clearMovingState();
+            return;
+        }
         fromColRow = xyToColRow(me.getPoint());
         if (fromColRow.x < 0 || fromColRow.x >= CChessBoard.files || fromColRow.y < 0 || fromColRow.y >= CChessBoard.ranks) {
             clearMovingState();
@@ -84,16 +89,16 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
 
     @Override
     public void mouseReleased(MouseEvent me) {
-        if (fromColRow != null && brd.isRedTurn() == playerIsRed) {
+        if (fromColRow != null && brd.isRedTurn() == playerIsRed && !brd.isGameOver()) {
+            boolean moverIsRed = brd.isRedTurn();
             Point toColRow = xyToColRow(me.getPoint());
             if (brd.validMove(fromColRow.x, fromColRow.y, toColRow.x, toColRow.y)) {
                 brd.movePiece(fromColRow.x, fromColRow.y, toColRow.x, toColRow.y);
-                System.out.println(brd);
+                finishMove(moverIsRed);
             }
         }
         clearMovingState();
         repaint();
-        makeAIMoveIfNeeded();
     }
 
     @Override
@@ -193,16 +198,40 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
         if (!aiEnabled || ai == null) {
             return;
         }
-        if (brd.isRedTurn() != aiIsRed) {
+        if (brd.isGameOver() || brd.isRedTurn() != aiIsRed) {
             return;
         }
         CChessBoard.Move move = ai.chooseMove(brd, aiIsRed);
         if (move == null) {
             return;
         }
+        boolean moverIsRed = brd.isRedTurn();
         brd.movePiece(move.fromCol, move.fromRow, move.toCol, move.toRow);
+        finishMove(moverIsRed);
+        repaint();
+    }
+
+    private void finishMove(boolean moverIsRed) {
         System.out.println(brd);
         repaint();
+        if (brd.isGameOver()) {
+            announceResult();
+        } else if (aiEnabled && moverIsRed == playerIsRed) {
+            makeAIMoveIfNeeded();
+        }
+    }
+
+    private void announceResult() {
+        Boolean winnerRed = brd.winnerIsRed();
+        String message;
+        if (winnerRed == null) {
+            message = "Hết nước đi - ván hòa";
+        } else if (winnerRed) {
+            message = "Đỏ thắng!";
+        } else {
+            message = "Đen thắng!";
+        }
+        JOptionPane.showMessageDialog(this, message, "Kết thúc ván", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void clearMovingState() {

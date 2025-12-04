@@ -29,6 +29,9 @@ public class SimpleAI {
         }
 
         public CChessBoard.Move chooseMove(CChessBoard board, boolean isRed) {
+                if (board.isGameOver()) {
+                        return null;
+                }
                 if (board.isRedTurn() != isRed) {
                         return null;
                 }
