@@ -8,9 +8,13 @@ import java.awt.Dimension;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
+import javax.swing.SwingUtilities;
 
 public class CChessPanel extends JPanel implements MouseListener, MouseMotionListener {
     private CChessBoard brd;
+    private final boolean aiEnabled;
+    private final boolean aiIsRed;
+    private final SimpleAI ai;
     private Point fromColRow;
     private Point movingPieceXY;
     private Image movingPieceImage;
@@ -18,17 +22,15 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
     int orgX = 83, orgY = 83;
     static int side = 67;
 
-    CChessPanel(CChessBoard brd) {
+    CChessPanel(CChessBoard brd, boolean aiEnabled, boolean aiIsRed, AIDifficulty difficulty) {
         this.brd = brd;
+        this.aiEnabled = aiEnabled;
+        this.aiIsRed = aiIsRed;
+        this.ai = aiEnabled ? new SimpleAI(difficulty) : null;
         setPreferredSize(new Dimension(700, 900));
         addMouseListener(this);
         addMouseMotionListener(this);
-    }
-
-    CChessPanel() {
-        setPreferredSize(new Dimension(700, 900));
-        addMouseListener(this);
-        addMouseMotionListener(this);
+        SwingUtilities.invokeLater(this::makeAIMoveIfNeeded);
     }
 
     private Point xyToColRow(Point xy) {
@@ -64,6 +66,7 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
         movingPieceXY = null;
         movingPieceImage = null;
         repaint();
+        makeAIMoveIfNeeded();
     }
 
     @Override
@@ -156,5 +159,21 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
     private void drawStarAt(Graphics g, int col, int row) {
         drawHalfStarAt(g, col, row, true);
         drawHalfStarAt(g, col, row, false);
+    }
+
+    private void makeAIMoveIfNeeded() {
+        if (!aiEnabled || ai == null) {
+            return;
+        }
+        if (brd.isRedTurn() != aiIsRed) {
+            return;
+        }
+        CChessBoard.Move move = ai.chooseMove(brd, aiIsRed);
+        if (move == null) {
+            return;
+        }
+        brd.movePiece(move.fromCol, move.fromRow, move.toCol, move.toRow);
+        System.out.println(brd);
+        repaint();
     }
 }
