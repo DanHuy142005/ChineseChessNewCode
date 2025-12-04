@@ -13,7 +13,7 @@ import java.io.File;
 import java.io.IOException;
 public class xiangqi {
   static Map<String, Image> keyNameValueImage = new HashMap<String, Image>();
-  xiangqi() {
+    xiangqi() {
     CChessBoard brd = new CChessBoard();
     System.out.println(brd);
     boolean playerIsRed = askPlayerColor();
@@ -21,7 +21,7 @@ public class xiangqi {
     JFrame f = new JFrame("Chinese Chess");
     f.setSize(800, 800);
     f.setLocation(50, 50);
-    f.add(new CChessPanel(brd, true, !playerIsRed, difficulty));
+    f.add(new CChessPanel(brd, true, !playerIsRed, difficulty, playerIsRed));
     f.setVisible(true);
   }
   public static void main(String[] args) throws IOException {
@@ -36,7 +36,7 @@ public class xiangqi {
 }
 
   private AIDifficulty askDifficulty() {
-          Object[] options = {"Dễ", "Trung bình", "Khó"};
+          Object[] options = {"Elo 800 (Dễ)", "Elo 1200 (Trung bình)", "Elo 1600 (Khó)"};
           int choice = JOptionPane.showOptionDialog(null,
                           "Chọn độ khó AI",
                           "Độ khó",

@@ -5,9 +5,19 @@ import java.util.List;
 import java.util.Random;
 
 enum AIDifficulty {
-        EASY,
-        MEDIUM,
-        HARD
+        EASY(800),
+        MEDIUM(1200),
+        HARD(1600);
+
+        private final int elo;
+
+        AIDifficulty(int elo) {
+                this.elo = elo;
+        }
+
+        int getElo() {
+                return elo;
+        }
 }
 
 public class SimpleAI {
