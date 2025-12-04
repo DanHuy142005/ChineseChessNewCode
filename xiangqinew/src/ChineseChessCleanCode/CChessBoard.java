@@ -1,20 +1,47 @@
 package ChineseChessCleanCode;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-public class CChessBoard { 
-	 private boolean isRedTurn = true;
-	final static int ranks = 10;
-    final static int files = 9;
-	private Set<Pieces> pieces = new HashSet<>();
-	 Set<Pieces> getPieces() {
-		    return pieces;
-	 }
-	CChessBoard() {
-	    for (int i = 0; i < 2; i++) {
-	      pieces.add(new Pieces(0 + i * 8, 0, true, Rank.ROOK, "rj"));
-	      pieces.add(new Pieces(1 + i * 6, 0, true, Rank.KNIGHT, "rm"));
+public class CChessBoard {
+        static class Move {
+                int fromCol;
+                int fromRow;
+                int toCol;
+                int toRow;
+
+                Move(int fromCol, int fromRow, int toCol, int toRow) {
+                        this.fromCol = fromCol;
+                        this.fromRow = fromRow;
+                        this.toCol = toCol;
+                        this.toRow = toRow;
+                }
+
+                @Override
+                public String toString() {
+                        return "(" + fromCol + "," + fromRow + ") -> (" + toCol + "," + toRow + ")";
+                }
+        }
+
+        private boolean isRedTurn = true;
+        final static int ranks = 10;
+        final static int files = 9;
+        private Set<Pieces> pieces = new HashSet<>();
+
+        Set<Pieces> getPieces() {
+                return pieces;
+        }
+
+        boolean isRedTurn() {
+                return isRedTurn;
+        }
+
+        CChessBoard() {
+            for (int i = 0; i < 2; i++) {
+              pieces.add(new Pieces(0 + i * 8, 0, true, Rank.ROOK, "rj"));
+              pieces.add(new Pieces(1 + i * 6, 0, true, Rank.KNIGHT, "rm"));
 	      pieces.add(new Pieces(2 + i * 4, 0, true, Rank.ELEPHENT, "rx"));
 	      pieces.add(new Pieces(3 + i * 2, 0, true, Rank.ADVISOR, "rs"));
 	      pieces.add(new Pieces(1 + i * 6, 2, true, Rank.CANNON, "rp"));
@@ -26,19 +53,27 @@ public class CChessBoard {
 	    }
 	    pieces.add(new Pieces(4, 0, true, Rank.KING, "rb"));
 	    pieces.add(new Pieces(4, 9, false, Rank.KING, "bb"));
-	    for (int i = 0; i < 5; i++) {
-	      pieces.add(new Pieces(i * 2, 3, true, Rank.PAWN, "rz"));
-	      pieces.add(new Pieces(i * 2, 6, false, Rank.PAWN, "bz"));
-	    }
-	  }
-		  Pieces pieceAt(int files, int ranks) {
-		    for (Pieces piece : pieces) {
-		      if (piece.col == files && piece.row == ranks) {
-		        return piece;
-		      }
-		    }
-		    return null;
-		  }
+            for (int i = 0; i < 5; i++) {
+              pieces.add(new Pieces(i * 2, 3, true, Rank.PAWN, "rz"));
+              pieces.add(new Pieces(i * 2, 6, false, Rank.PAWN, "bz"));
+            }
+          }
+
+        CChessBoard(CChessBoard other) {
+                this.isRedTurn = other.isRedTurn;
+                for (Pieces p : other.pieces) {
+                        pieces.add(new Pieces(p.col, p.row, p.isRed, p.rank, p.imgName));
+                }
+        }
+
+                  Pieces pieceAt(int files, int ranks) {
+                    for (Pieces piece : pieces) {
+                      if (piece.col == files && piece.row == ranks) {
+                        return piece;
+                      }
+                    }
+                    return null;
+                  }
 		  void movePiece(int fromCol, int fromRow, int toCol, int toRow) {
 			  Pieces movingP = pieceAt(fromCol, fromRow);
 			  Pieces targetP = pieceAt(toCol, toRow);
@@ -141,11 +176,11 @@ public class CChessBoard {
 				  }
 				  return numPiecesBetween(fromCol, fromRow, toCol, toRow) == 1;
 		  }
-		  private boolean PawnMove(int fromCol, int fromRow, int toCol, int toRow, boolean isRed) {
-			  if(steps(fromCol, fromRow, toCol, toRow) != 1) {
-				  return false;
-			  }
-			  if (isRed) {
+                  private boolean PawnMove(int fromCol, int fromRow, int toCol, int toRow, boolean isRed) {
+                          if(steps(fromCol, fromRow, toCol, toRow) != 1) {
+                                  return false;
+                          }
+                          if (isRed) {
 			        if (selfSide(fromRow, true)) {
 			            return (toCol == fromCol && toRow == fromRow + 1);
 			        } else {
@@ -162,11 +197,11 @@ public class CChessBoard {
 			            return false;
 		  }
 			    }
-		  }
-		  boolean validMove(int fromC, int fromR, int toC, int toR) {
-			  if(fromC == toC && fromR == toR || outBoard(toC, toR)) {
-				  return false;
-			  }
+                  }
+                  boolean validMove(int fromC, int fromR, int toC, int toR) {
+                          if(fromC == toC && fromR == toR || outBoard(toC, toR)) {
+                                  return false;
+                          }
 			  Pieces p = pieceAt(fromC, fromR);
 			  if (p == null || p.isRed != isRedTurn || selfKilling(fromC, fromR, toC, toR, p.isRed)) {
 			    return false;
@@ -195,10 +230,43 @@ public class CChessBoard {
 			      ok = PawnMove(fromC, fromR, toC, toR, p.isRed);
 			      break;
 			  }
-			  return ok;
-		  }
-	public String toString() {
-		String board = "";
+                          return ok;
+                  }
+
+        List<Move> getAllValidMoves() {
+                List<Move> moves = new ArrayList<>();
+                for (Pieces p : pieces) {
+                        if (p.isRed != isRedTurn) continue;
+                        for (int c = 0; c < files; c++) {
+                                for (int r = 0; r < ranks; r++) {
+                                        if (validMove(p.col, p.row, c, r)) {
+                                                moves.add(new Move(p.col, p.row, c, r));
+                                        }
+                                }
+                        }
+                }
+                return moves;
+        }
+
+        double materialScore(boolean forRed) {
+                double score = 0;
+                for (Pieces p : pieces) {
+                        double value = 0;
+                        switch (p.rank) {
+                                case KING: value = 1000; break;
+                                case ROOK: value = 9; break;
+                                case CANNON: value = 4.5; break;
+                                case KNIGHT: value = 4; break;
+                                case ELEPHENT: value = 2.5; break;
+                                case ADVISOR: value = 2; break;
+                                case PAWN: value = 1.5; break;
+                        }
+                        score += p.isRed == forRed ? value : -value;
+                }
+                return score;
+        }
+        public String toString() {
+                String board = "";
 		board += " ";
 		for (int i = 0; i < 9; i++) {
 			board += " " + i;
