@@ -32,6 +32,8 @@ public class CChessBoard {
         private boolean gameOver = false;
         private boolean lastMoverRed = false;
         private boolean winByNoMoves = false;
+        private boolean checkmate = false;
+        private boolean stalemate = false;
 
         Set<Pieces> getPieces() {
                 return pieces;
@@ -68,6 +70,11 @@ public class CChessBoard {
 
         CChessBoard(CChessBoard other) {
                 this.isRedTurn = other.isRedTurn;
+                this.lastMoverRed = other.lastMoverRed;
+                this.gameOver = other.gameOver;
+                this.winByNoMoves = other.winByNoMoves;
+                this.checkmate = other.checkmate;
+                this.stalemate = other.stalemate;
                 for (Pieces p : other.pieces) {
                         pieces.add(new Pieces(p.col, p.row, p.isRed, p.rank, p.imgName));
                 }
@@ -99,16 +106,31 @@ public class CChessBoard {
                   }
 
                   private void updateGameOverState() {
+                          checkmate = false;
+                          stalemate = false;
                           boolean redKingAlive = hasKing(true);
                           boolean blackKingAlive = hasKing(false);
                           if (!redKingAlive || !blackKingAlive) {
                                   gameOver = true;
                                   winByNoMoves = false;
+                                  checkmate = true;
                                   return;
                           }
-                          if (getAllValidMoves().isEmpty()) {
+                          List<Move> moves = getAllValidMoves();
+                          if (moves.isEmpty()) {
                                   gameOver = true;
                                   winByNoMoves = true;
+                                  boolean sideInCheck = isInCheck(isRedTurn);
+                                  if (sideInCheck) {
+                                          checkmate = true;
+                                          stalemate = false;
+                                  } else {
+                                          checkmate = false;
+                                          stalemate = true;
+                                  }
+                          } else {
+                                  gameOver = false;
+                                  winByNoMoves = false;
                           }
                   }
 		  private boolean outBoard(int col, int row) {
@@ -269,29 +291,29 @@ public class CChessBoard {
                                   return false;
                           }
                           Pieces p = pieceAt(fromC, fromR);
-			  if (p == null || p.isRed != isRedTurn || selfKilling(fromC, fromR, toC, toR, p.isRed)) {
-			    return false;
-			  }
-			  boolean ok = false;
+                          if (p == null || p.isRed != isRedTurn || selfKilling(fromC, fromR, toC, toR, p.isRed)) {
+                            return false;
+                          }
+                          boolean ok = false;
                           switch (p.rank) {
                             case ADVISOR:
                               ok = AdvisorMove(fromC, fromR, toC, toR, p.isRed);
-			      break;
-			    case KING: 
-			      ok = KingMove(fromC, fromR, toC, toR, p.isRed);
-			      break;
-			    case ELEPHENT: 
-			      ok = ElephentMove(fromC, fromR, toC, toR, p.isRed);
-			      break;
-			    case KNIGHT: 
-			      ok = KnightMove(fromC, fromR, toC, toR);
-			      break;
-			    case ROOK: 
-			      ok = RookMove(fromC, fromR, toC, toR);
-			      break;
-			    case CANNON: 
-			      ok = CannonMove(fromC, fromR, toC, toR);
-			      break;
+                              break;
+                            case KING:
+                              ok = KingMove(fromC, fromR, toC, toR, p.isRed);
+                              break;
+                            case ELEPHENT:
+                              ok = ElephentMove(fromC, fromR, toC, toR, p.isRed);
+                              break;
+                            case KNIGHT:
+                              ok = KnightMove(fromC, fromR, toC, toR);
+                              break;
+                            case ROOK:
+                              ok = RookMove(fromC, fromR, toC, toR);
+                              break;
+                            case CANNON:
+                              ok = CannonMove(fromC, fromR, toC, toR);
+                              break;
                             case PAWN:
                               ok = PawnMove(fromC, fromR, toC, toR, p.isRed);
                               break;
@@ -299,13 +321,69 @@ public class CChessBoard {
                           if (!ok) {
                                   return false;
                           }
-                          return !kingFacesAfter(fromC, fromR, toC, toR);
+                          if (kingFacesAfter(fromC, fromR, toC, toR)) {
+                                  return false;
+                          }
+                          return !leavesKingInCheck(fromC, fromR, toC, toR, p.isRed);
                   }
 
         private boolean kingFacesAfter(int fromC, int fromR, int toC, int toR) {
                 CChessBoard hypothetical = new CChessBoard(this);
                 hypothetical.movePieceInternal(fromC, fromR, toC, toR, false);
                 return hypothetical.kingsFacing();
+        }
+
+        private Pieces findKing(boolean isRed) {
+                for (Pieces p : pieces) {
+                        if (p.rank == Rank.KING && p.isRed == isRed) {
+                                return p;
+                        }
+                }
+                return null;
+        }
+
+        public boolean isInCheck(boolean isRed) {
+                Pieces king = findKing(isRed);
+                if (king == null) {
+                        return false;
+                }
+                for (Pieces p : pieces) {
+                        if (p.isRed == isRed) continue;
+                        if (pieceAttacksSquare(p, king.col, king.row)) {
+                                return true;
+                        }
+                }
+                return false;
+        }
+
+        private boolean pieceAttacksSquare(Pieces attacker, int toCol, int toRow) {
+                if (attacker.col == toCol && attacker.row == toRow) {
+                        return false;
+                }
+                switch (attacker.rank) {
+                        case ADVISOR:
+                                return AdvisorMove(attacker.col, attacker.row, toCol, toRow, attacker.isRed);
+                        case KING:
+                                return KingMove(attacker.col, attacker.row, toCol, toRow, attacker.isRed);
+                        case ELEPHENT:
+                                return ElephentMove(attacker.col, attacker.row, toCol, toRow, attacker.isRed);
+                        case KNIGHT:
+                                return KnightMove(attacker.col, attacker.row, toCol, toRow);
+                        case ROOK:
+                                return RookMove(attacker.col, attacker.row, toCol, toRow);
+                        case CANNON:
+                                return CannonMove(attacker.col, attacker.row, toCol, toRow);
+                        case PAWN:
+                                return PawnMove(attacker.col, attacker.row, toCol, toRow, attacker.isRed);
+                        default:
+                                return false;
+                }
+        }
+
+        private boolean leavesKingInCheck(int fromC, int fromR, int toC, int toR, boolean moverIsRed) {
+                CChessBoard hypothetical = new CChessBoard(this);
+                hypothetical.movePieceInternal(fromC, fromR, toC, toR, false);
+                return hypothetical.isInCheck(moverIsRed);
         }
 
         Boolean winnerIsRed() {
@@ -315,10 +393,18 @@ public class CChessBoard {
                 if (!hasKing(false)) {
                         return true;
                 }
-                if (gameOver && winByNoMoves) {
-                        return lastMoverRed;
+                if (gameOver && (checkmate || winByNoMoves)) {
+                        return checkmate ? lastMoverRed : null;
                 }
                 return null;
+        }
+
+        boolean isCheckmate() {
+                return gameOver && checkmate;
+        }
+
+        boolean isStalemate() {
+                return gameOver && stalemate;
         }
 
         List<Move> getAllValidMoves() {

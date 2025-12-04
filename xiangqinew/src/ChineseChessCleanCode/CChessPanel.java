@@ -16,7 +16,7 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
     private final boolean aiEnabled;
     private final boolean aiIsRed;
     private final boolean playerIsRed;
-    private final SimpleAI ai;
+    private final PikafishAI ai;
     private Point fromColRow;
     private Point movingPieceXY;
     private Image movingPieceImage;
@@ -29,7 +29,7 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
         this.aiEnabled = aiEnabled;
         this.aiIsRed = aiIsRed;
         this.playerIsRed = playerIsRed;
-        this.ai = aiEnabled ? new SimpleAI(difficulty) : null;
+        this.ai = aiEnabled ? new PikafishAI(difficulty) : null;
         setPreferredSize(new Dimension(700, 900));
         addMouseListener(this);
         addMouseMotionListener(this);
@@ -226,10 +226,10 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
         String message;
         if (winnerRed == null) {
             message = "Hết nước đi - ván hòa";
-        } else if (winnerRed) {
-            message = "Đỏ thắng!";
+        } else if (brd.isCheckmate()) {
+            message = (winnerRed ? "Đỏ" : "Đen") + " chiếu hết!";
         } else {
-            message = "Đen thắng!";
+            message = (winnerRed ? "Đỏ" : "Đen") + " thắng!";
         }
         JOptionPane.showMessageDialog(this, message, "Kết thúc ván", JOptionPane.INFORMATION_MESSAGE);
     }
