@@ -15,10 +15,12 @@ public class Pieces {
 	int row;
 	boolean isRed;
 	Rank rank;
-	public Pieces(int col, int row, boolean isRed, Rank rank) {
+	String imgName;
+	public Pieces(int col, int row, boolean isRed, Rank rank, String imgName) {
 		this.col = col;
 		this.row = row;
 		this.isRed = isRed;
 		this.rank = rank;
+		this.imgName = imgName;
 	}
 }
