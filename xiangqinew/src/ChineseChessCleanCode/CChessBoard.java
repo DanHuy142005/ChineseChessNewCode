@@ -4,29 +4,33 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class CChessBoard { 
+	 private boolean isRedTurn = true;
 	final static int ranks = 10;
     final static int files = 9;
 	private Set<Pieces> pieces = new HashSet<>();
-    CChessBoard() {
-		for (int i = 0; i < 2; i++) {
-		      pieces.add(new Pieces(0 + i * 8, 0, true, Rank.ROOK));
-		      pieces.add(new Pieces(1 + i * 6, 0, true, Rank.KNIGHT));
-		      pieces.add(new Pieces(2 + i * 4, 0, true, Rank.ELEPHENT));
-		      pieces.add(new Pieces(3 + i * 2, 0, true, Rank.ADVISOR));
-		      pieces.add(new Pieces(1 + i * 6, 2, true, Rank.CANNON));
-		      pieces.add(new Pieces(0 + i * 8, 9, false, Rank.ROOK));
-		      pieces.add(new Pieces(1 + i * 6, 9, false, Rank.KNIGHT));
-		      pieces.add(new Pieces(2 + i * 4, 9, false, Rank.ELEPHENT));
-		      pieces.add(new Pieces(3 + i * 2, 9, false, Rank.ADVISOR));
-		      pieces.add(new Pieces(1 + i * 6, 7, false, Rank.CANNON));
-		    }
-		    pieces.add(new Pieces(4, 0, true, Rank.KING));
-		    pieces.add(new Pieces(4, 9, false, Rank.KING));
-		    for (int i = 0; i < 5; i++) {
-		      pieces.add(new Pieces(i * 2, 3, true, Rank.PAWN));
-		      pieces.add(new Pieces(i * 2, 6, false, Rank.PAWN));
-		    }
-		  }
+	 Set<Pieces> getPieces() {
+		    return pieces;
+	 }
+	CChessBoard() {
+	    for (int i = 0; i < 2; i++) {
+	      pieces.add(new Pieces(0 + i * 8, 0, true, Rank.ROOK, "rj"));
+	      pieces.add(new Pieces(1 + i * 6, 0, true, Rank.KNIGHT, "rm"));
+	      pieces.add(new Pieces(2 + i * 4, 0, true, Rank.ELEPHENT, "rx"));
+	      pieces.add(new Pieces(3 + i * 2, 0, true, Rank.ADVISOR, "rs"));
+	      pieces.add(new Pieces(1 + i * 6, 2, true, Rank.CANNON, "rp"));
+	      pieces.add(new Pieces(0 + i * 8, 9, false, Rank.ROOK, "bj"));
+	      pieces.add(new Pieces(1 + i * 6, 9, false, Rank.KNIGHT, "bm"));
+	      pieces.add(new Pieces(2 + i * 4, 9, false, Rank.ELEPHENT, "bx"));
+	      pieces.add(new Pieces(3 + i * 2, 9, false, Rank.ADVISOR, "bs"));
+	      pieces.add(new Pieces(1 + i * 6, 7, false, Rank.CANNON, "bp"));
+	    }
+	    pieces.add(new Pieces(4, 0, true, Rank.KING, "rb"));
+	    pieces.add(new Pieces(4, 9, false, Rank.KING, "bb"));
+	    for (int i = 0; i < 5; i++) {
+	      pieces.add(new Pieces(i * 2, 3, true, Rank.PAWN, "rz"));
+	      pieces.add(new Pieces(i * 2, 6, false, Rank.PAWN, "bz"));
+	    }
+	  }
 		  Pieces pieceAt(int files, int ranks) {
 		    for (Pieces piece : pieces) {
 		      if (piece.col == files && piece.row == ranks) {
@@ -35,12 +39,13 @@ public class CChessBoard {
 		    }
 		    return null;
 		  }
-			  void movePiece(int fromCol, int fromRow, int toCol, int toRow) {
+		  void movePiece(int fromCol, int fromRow, int toCol, int toRow) {
 			  Pieces movingP = pieceAt(fromCol, fromRow);
 			  Pieces targetP = pieceAt(toCol, toRow);
 			  pieces.remove(movingP);
 			  pieces.remove(targetP);
-			  pieces.add(new Pieces(toCol, toRow, movingP.isRed, movingP.rank));
+			  pieces.add(new Pieces(toCol, toRow, movingP.isRed, movingP.rank, movingP.imgName));
+			  isRedTurn = !isRedTurn;
 		  }
 		  private boolean outBoard(int col, int row) {
 			  return col < 0 || col > 8 || row < 0 || row > 9;
@@ -51,18 +56,16 @@ public class CChessBoard {
 		  private boolean isDiagonal(int fromCol,int fromRow, int toCol, int toRow) {
 			  return Math.abs(fromRow - toRow) == Math.abs(fromCol - toCol);
 		  }
-		  private int steps(int fromCol,int fromRow, int toCol, int toRow) {
-			  if(fromCol == toCol) {
-				  return Math.abs(fromCol - toCol);
-			  }
-			  else if(fromRow == toRow) {
-				  return Math.abs(fromRow - toRow);
-			  }
-			  else if(isDiagonal(fromCol, fromRow, toCol, toRow)) {
-				  return Math.abs(fromRow - toRow);
-			  }
-			  return 0;
-		  }
+		  private int steps(int fromCol, int fromRow, int toCol, int toRow) {
+			    if (fromCol == toCol) {               
+			        return Math.abs(fromRow - toRow);
+			    } else if (fromRow == toRow) {         
+			        return Math.abs(fromCol - toCol);
+			    } else if (isDiagonal(fromCol, fromRow, toCol, toRow)) { 
+			        return Math.abs(fromRow - toRow);
+			    }
+			    return 0;
+			}
 		  private boolean KingAndAdvisoroutPlace(int col, int row, boolean isRed) {
 			  if (isRed) {
 			    return col < 3 || col > 5 || row < 0 || row > 2;
@@ -142,14 +145,30 @@ public class CChessBoard {
 			  if(steps(fromCol, fromRow, toCol, toRow) != 1) {
 				  return false;
 			  }
-			  return isRed && toRow > fromRow || !isRed && toRow < fromRow || !selfSide(fromRow, isRed);
+			  if (isRed) {
+			        if (selfSide(fromRow, true)) {
+			            return (toCol == fromCol && toRow == fromRow + 1);
+			        } else {
+			            if (toCol == fromCol && toRow == fromRow + 1) return true;             
+			            if (toRow == fromRow && Math.abs(toCol - fromCol) == 1) return true;   
+			            return false;
+			        }
+			    } else {
+			        if (selfSide(fromRow, false)) {
+			            return (toCol == fromCol && toRow == fromRow - 1);
+			        } else {
+			            if (toCol == fromCol && toRow == fromRow - 1) return true;             
+			            if (toRow == fromRow && Math.abs(toCol - fromCol) == 1) return true;  
+			            return false;
+		  }
+			    }
 		  }
 		  boolean validMove(int fromC, int fromR, int toC, int toR) {
 			  if(fromC == toC && fromR == toR || outBoard(toC, toR)) {
 				  return false;
 			  }
 			  Pieces p = pieceAt(fromC, fromR);
-			  if (p == null || selfKilling(fromC, fromR, toC, toR, p.isRed)) {
+			  if (p == null || p.isRed != isRedTurn || selfKilling(fromC, fromR, toC, toR, p.isRed)) {
 			    return false;
 			  }
 			  boolean ok = false;
@@ -207,5 +226,4 @@ public class CChessBoard {
 		}
 		return board;
 	}
-
 }
