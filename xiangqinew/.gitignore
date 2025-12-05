@@ -1,0 +1,5 @@
+bin/
+*.class
+
+PikafishAI.java
+PikafishAI.class
