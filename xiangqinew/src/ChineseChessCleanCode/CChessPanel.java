@@ -8,9 +8,15 @@ import java.awt.Dimension;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
+import javax.swing.SwingUtilities;
+import javax.swing.JOptionPane;
 
 public class CChessPanel extends JPanel implements MouseListener, MouseMotionListener {
     private CChessBoard brd;
+    private final boolean aiEnabled;
+    private final boolean aiIsRed;
+    private final boolean playerIsRed;
+    private final SimpleAI ai;
     private Point fromColRow;
     private Point movingPieceXY;
     private Image movingPieceImage;
@@ -18,51 +24,80 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
     int orgX = 83, orgY = 83;
     static int side = 67;
 
-    CChessPanel(CChessBoard brd) {
+    CChessPanel(CChessBoard brd, boolean aiEnabled, boolean aiIsRed, AIDifficulty difficulty, boolean playerIsRed) {
         this.brd = brd;
+        this.aiEnabled = aiEnabled;
+        this.aiIsRed = aiIsRed;
+        this.playerIsRed = playerIsRed;
+        this.ai = aiEnabled ? new SimpleAI(difficulty) : null;
         setPreferredSize(new Dimension(700, 900));
         addMouseListener(this);
         addMouseMotionListener(this);
-    }
-
-    CChessPanel() {
-        setPreferredSize(new Dimension(700, 900));
-        addMouseListener(this);
-        addMouseMotionListener(this);
+        SwingUtilities.invokeLater(this::makeAIMoveIfNeeded);
     }
 
     private Point xyToColRow(Point xy) {
-        return new Point((xy.x - orgX + side / 2) / side,
-                         (xy.y - orgY + side / 2) / side);
+        int viewCol = (xy.x - orgX + side / 2) / side;
+        int viewRow = (xy.y - orgY + side / 2) / side;
+        return viewToBoard(viewCol, viewRow);
+    }
+
+    private Point boardToView(int col, int row) {
+        if (playerIsRed) {
+            return new Point(CChessBoard.files - 1 - col, CChessBoard.ranks - 1 - row);
+        }
+        return new Point(col, row);
+    }
+
+    private Point viewToBoard(int viewCol, int viewRow) {
+        if (playerIsRed) {
+            return new Point(CChessBoard.files - 1 - viewCol, CChessBoard.ranks - 1 - viewRow);
+        }
+        return new Point(viewCol, viewRow);
     }
 
     @Override
     public void mousePressed(MouseEvent me) {
+        if (brd.isGameOver()) {
+            clearMovingState();
+            return;
+        }
         fromColRow = xyToColRow(me.getPoint());
+        if (fromColRow.x < 0 || fromColRow.x >= CChessBoard.files || fromColRow.y < 0 || fromColRow.y >= CChessBoard.ranks) {
+            clearMovingState();
+            return;
+        }
+        if (brd.isRedTurn() != playerIsRed) {
+            clearMovingState();
+            return;
+        }
         Pieces movingPiece = brd.pieceAt(fromColRow.x, fromColRow.y);
+        if (movingPiece == null || movingPiece.isRed != playerIsRed) {
+            clearMovingState();
+            return;
+        }
         if (movingPiece != null) {
             movingPieceImage = xiangqi.keyNameValueImage.get(movingPiece.imgName);
-            int drawX = orgX + side * movingPiece.col - side / 2;
-            int drawY = orgY + side * movingPiece.row - side / 2;
+            Point view = boardToView(movingPiece.col, movingPiece.row);
+            int drawX = orgX + side * view.x - side / 2;
+            int drawY = orgY + side * view.y - side / 2;
             movingPieceXY = new Point(drawX, drawY);
         } else {
-            movingPieceImage = null;
-            movingPieceXY = null;
+            clearMovingState();
         }
     }
 
     @Override
     public void mouseReleased(MouseEvent me) {
-        if (fromColRow != null) {
+        if (fromColRow != null && brd.isRedTurn() == playerIsRed && !brd.isGameOver()) {
+            boolean moverIsRed = brd.isRedTurn();
             Point toColRow = xyToColRow(me.getPoint());
             if (brd.validMove(fromColRow.x, fromColRow.y, toColRow.x, toColRow.y)) {
                 brd.movePiece(fromColRow.x, fromColRow.y, toColRow.x, toColRow.y);
-                System.out.println(brd);
+                finishMove(moverIsRed);
             }
         }
-        fromColRow = null;
-        movingPieceXY = null;
-        movingPieceImage = null;
+        clearMovingState();
         repaint();
     }
 
@@ -112,9 +147,10 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
                 continue;
             }
             Image img = xiangqi.keyNameValueImage.get(p.imgName);
+            Point view = boardToView(p.col, p.row);
             g.drawImage(img,
-                    orgX + side * p.col - side / 2,
-                    orgY + side * p.row - side / 2,
+                    orgX + side * view.x - side / 2,
+                    orgY + side * view.y - side / 2,
                     this);
         }
     }
@@ -156,5 +192,51 @@ public class CChessPanel extends JPanel implements MouseListener, MouseMotionLis
     private void drawStarAt(Graphics g, int col, int row) {
         drawHalfStarAt(g, col, row, true);
         drawHalfStarAt(g, col, row, false);
+    }
+
+    private void makeAIMoveIfNeeded() {
+        if (!aiEnabled || ai == null) {
+            return;
+        }
+        if (brd.isGameOver() || brd.isRedTurn() != aiIsRed) {
+            return;
+        }
+        CChessBoard.Move move = ai.chooseMove(brd, aiIsRed);
+        if (move == null) {
+            return;
+        }
+        boolean moverIsRed = brd.isRedTurn();
+        brd.movePiece(move.fromCol, move.fromRow, move.toCol, move.toRow);
+        finishMove(moverIsRed);
+        repaint();
+    }
+
+    private void finishMove(boolean moverIsRed) {
+        System.out.println(brd);
+        repaint();
+        if (brd.isGameOver()) {
+            announceResult();
+        } else if (aiEnabled && moverIsRed == playerIsRed) {
+            makeAIMoveIfNeeded();
+        }
+    }
+
+    private void announceResult() {
+        Boolean winnerRed = brd.winnerIsRed();
+        String message;
+        if (winnerRed == null) {
+            message = "Hết nước đi - ván hòa";
+        } else if (brd.isCheckmate()) {
+            message = (winnerRed ? "Đỏ" : "Đen") + " chiếu hết!";
+        } else {
+            message = (winnerRed ? "Đỏ" : "Đen") + " thắng!";
+        }
+        JOptionPane.showMessageDialog(this, message, "Kết thúc ván", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void clearMovingState() {
+        fromColRow = null;
+        movingPieceXY = null;
+        movingPieceImage = null;
     }
 }
