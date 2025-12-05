@@ -37,11 +37,9 @@ public class xiangqi {
 
   private AIDifficulty askDifficulty() {
           Object[] options = {
-                  "Pikafish Elo 1500 (Dễ)",
-                  "Pikafish Elo 1900 (Trung bình)",
-                  "Pikafish Elo 2300 (Khó)"};
+                  "AI Dễ", "AI Trung bình", "AI Khó", "AI Cực khó (Elo 2000)"};
           int choice = JOptionPane.showOptionDialog(null,
-                          "Chọn Elo cho AI Pikafish",
+                          "Chọn độ khó cho AI",
                           "Độ khó",
                           JOptionPane.DEFAULT_OPTION,
                           JOptionPane.QUESTION_MESSAGE,
@@ -49,9 +47,10 @@ public class xiangqi {
                           options,
                           options[1]);
           switch (choice) {
-                  case 0: return AIDifficulty.PIKAFISH_1500;
-                  case 2: return AIDifficulty.PIKAFISH_2300;
-                  default: return AIDifficulty.PIKAFISH_1900;
+                  case 0: return AIDifficulty.EASY;
+                  case 2: return AIDifficulty.HARD;
+                  case 3: return AIDifficulty.EXTREME;
+                  default: return AIDifficulty.MEDIUM;
           }
   }
 
